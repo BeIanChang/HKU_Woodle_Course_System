@@ -1,100 +1,76 @@
-# Face Recognition
+# HKU Woodle Course System
 
-Face recognition using python and mysql.
+Smart course companion that takes attendance via face recognition, launches the right dashboard UI, and emails students about upcoming classes. The system blends computer vision, PyQt5, and MySQL automation to demonstrate how applied AI can drive practical workflows.
 
-*******
+## Problem & Outcome
+- **Problem:** Manual attendance and fragmented course information frustrated HKU students.
+- **Outcome:** Built a desktop assistant that recognises students in real time, logs attendance, surfaces class materials, and sends reminder emails—all powered by a single Python codebase.
 
-## Useage
+## Feature Highlights
+- **Face-recognition attendance:** OpenCV LBPH model (`face_capture.py`, `train.py`, `faces.py`) identifies students from a live webcam feed and writes login events to MySQL.
+- **Adaptive GUI:** PyQt5 welcome window (`welcome_window.py`) checks whether a course starts within the next hour; it launches either a course-material view (`course_window.py`) or a timetable view (`timetable_window.py`).
+- **Automated notifications:** `email_notification.py` fetches upcoming course data and emails students using Outlook SMTP credentials.
+- **Database abstraction:** `database_model.py` wraps raw SQL to keep UI logic clean and makes it easier to port to other frameworks.
 
-### Environment
-
-Create virtual environment using Anaconda.
+## Repository Layout
 ```
-conda create -n face python=3.x
-conda activate face
+assets/                  Logos and UI imagery
+config.py                Central place for DB credentials and constants
+database_model.py        Query helpers (login tracking, timetable, upcoming courses)
+face_capture.py          Capture labelled face images for new users
+train.py                 Train LBPH recogniser (outputs train.yml + labels.pickle)
+faces.py                 OpenCV window + text-to-speech attendance flow
+faces_gui.py             PySimpleGUI alternative interface
+welcome_window.py        PyQt5 launcher UI; routes to course/timetable windows
+course_window.py         Course material display (slides, Zoom links, notes)
+timetable_window.py      Weekly timetable view
+email_notification.py    SMTP sender for class reminders
+facerecognition.sql      MySQL schema + sample data
+haarcascade/             Haar cascade XML models
+requirements.txt         Python dependencies
+```
+
+## Environment Setup
+```bash
+conda create -n woodle python=3.9
+conda activate woodle
 pip install -r requirements.txt
 ```
-
-### MySQL Install
-
-[Mac](https://dev.mysql.com/doc/mysql-osx-excerpt/5.7/en/osx-installation-pkg.html)
-
-[Ubuntu](https://dev.mysql.com/doc/mysql-linuxunix-excerpt/5.7/en/linux-installation.html)
-
-[Windows](https://dev.mysql.com/downloads/installer/)
-
-You'll obtain an account and password after installation, then you should modify the `faces.py`, with the corresponding
-`user` and `passwd`:
-```
-# create database connection
-myconn = mysql.connector.connect(host="localhost", user="root", passwd="xxxxx", database="facerecognition")
-```
-
-*******
-
-## Run
-
-### 1. Face Recognition
-
-#### 1.1 Collect Face Data
-```
-"""
-user_name = "Jack"   # the name
-NUM_IMGS = 400       # the number of saved images
-"""
-python face_capture.py
-```
-The camera will be activated and the captured images will be stored in `data/Jack` folder.      
-**Note:** Only one person’s images can be captured at a time.
-
-#### 1.2 Train a Face Recognition Model
-```
-python train.py
-```
-`train.yml` and `labels.pickle` will be created at the current folder.
-
-
-
-### 2. Database Design
-
-#### 2.1 Define Database
-```
-Our database now: 
-Users(user_id, user_name, user_email, user_login_time, user_login_date)
-Teachers(user_id, student_id_string)
-Students(user_id, teacher_office)
-Courses(course_id, course_code, course_name, teacher_user_id, welcome_message)
-Coursetimeslots(course_id, start_time, end_time, day_in_week, course_venue)
-Registercourse(user_id, course_id)
-```
-#### 2.2 Import Database
-Open mysql server and import the file `facerecognition.sql`.
-```
-# login the mysql command
+Database:
+```bash
 mysql -u root -p
-
-# create database.  'mysql>' indicates we are now in the mysql command line
 mysql> CREATE DATABASE facerecognition;
 mysql> USE facerecognition;
-
-# import from sql file
-mysql> source facerecognition.sql
+mysql> SOURCE facerecognition.sql;
 ```
+Update `config.py` with your database host/user/password and email credentials for Outlook (used by the notification module).
 
+## End-to-End Workflow
+1. **Capture training data**
+   ```bash
+   python face_capture.py     # configure user_name + NUM_IMGS at top of file
+   ```
+   Images are stored under `data/<user_name>/` for inspection.
+2. **Train the recogniser**
+   ```bash
+   python train.py
+   ```
+   Produces `train.yml` (LBPH weights) and `labels.pickle` (id mapping).
+3. **Run attendance + dashboard**
+   ```bash
+   python welcome_window.py   # PyQt5 UI
+   # or python faces_gui.py    # PySimpleGUI variant
+   ```
+   When a face is recognised, `database_model.update_login_time` records the event, text-to-speech greets the student, and the UI opens the relevant screen.
+4. **Send reminder emails (optional)**
+   ```bash
+   python email_notification.py
+   ```
+   Demonstrates how upcoming course data drives automated communications.
 
+## Results & Learnings
+- Reduced sign-in friction by eliminating manual password prompts; students authenticate by presence.
+- Reused the same database layer across computer-vision, GUI, and notification modules, proving the design is modular enough for future web/mobile clients.
+- Wrapped computer-vision models with user-friendly flows, highlighting experience bridging AI and UX.
 
-### 3. Login Interface
-
-#### 3.1 OpenCV GUI
-```
-python faces.py
-```
-
-#### 3.2 PySimpleGUI GUI
-```
-python faces_gui.py
-```
-
-The camera will be activated and recognize your face using the pretrained model.    
-**You need to** implement other useful functions in this part.
 
